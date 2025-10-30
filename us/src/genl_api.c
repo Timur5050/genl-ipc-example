@@ -1,5 +1,6 @@
 #include "genl_api.h"
 #include "genl_debug.h" 
+#include "genl_ops.h"
 
 static struct sockaddr_nl sa_kernel_unicast;
 
@@ -135,9 +136,59 @@ int handle_stdin_command(
 {
     int ret = 0;
 
-    printf("len : %d, str: %s\n", strlen(data), data);
+    char *ptr = data;
+    char *word_end = ptr;
+    char *args[64];
+    int words_counter = 0;
 
+    while (*word_end != '\0') {
+        while (isspace(*ptr)) ptr++;
+        if (*ptr == '\0') break;
+    
+        char *start = ptr;
+        while (*ptr && !isspace(*ptr)) ptr++;
+    
+        int len = ptr - start;
+        args[words_counter] = strndup(start, len);
+        words_counter++;
+    }
+    
+    for(int i = 0; i < words_counter; i++) {
+        printf("index : %d, word: %s, len : %d\n", i, args[i], strlen(args[i]));
+    }
 
+    if (strcmp(args[0], "echo") == 0) {
+        struct genlmytest_cmd_config cmd_config = {
+            .str_param      = args[1],
+            .uint32_param   = (uint32_t)args[2]
+        };
+        printf("calling echo func\n");
+        ret = send_familytest_echo(sock_fd, sa_local, &cmd_config, send_family_echo_callback, q);
+        goto out;
+    }
 out: 
     return ret;
+}
+
+int handle_socket_message(sock_fd, q) {
+    int ret = 0;
+
+    char recv_buf[BUFFER_RECEIVE_SIZE];
+    struct nlmsghdr *nlh_recv = (struct nlmsghdr *)recv_buf;
+    printf("recesved socket - ");
+    ret = receive_testfamily_msg_unicast(sock_fd, nlh_recv, BUFFER_RECEIVE_SIZE);
+
+    if (ret < 0) {
+        fprintf(stderr, "failed to receive message in socket handler\n");
+        return ret;
+    }
+    printf("socket handler: %d\n",nlh_recv->nlmsg_type );
+    if (nlh_recv->nlmsg_type == family_id) {
+        genl_callback_t cb = genl_queue_find_and_pop(q, nlh_recv->nlmsg_seq, 0);
+        if (cb) {
+            cb(nlh_recv);
+        }
+    }
+
+
 }

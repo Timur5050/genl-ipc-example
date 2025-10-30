@@ -106,7 +106,6 @@ void send_family_echo_callback(struct nlmsghdr *nlh) {
 
 int send_familytest_echo(
     int sock_fd, 
-    int family_id, 
     struct sockaddr_nl sa_local,
     struct genlmytest_cmd_config *in, 
     genl_callback_t callback,
@@ -117,6 +116,8 @@ int send_familytest_echo(
     char buf[4096];
     struct nlmsghdr *nlh;
     struct genlmsghdr *genlh;
+
+    //memset(buf, 0, sizeof(buf));
 
     /* prepare message */
     nlh = (struct nlmsghdr *)buf;

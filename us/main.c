@@ -73,9 +73,9 @@ int main()
             handle_stdin_command(temp, sock_fd, sa_local, q);
         }
         
-        // if (fds[1].revents & POLLIN) {
-        //     handle_socket_message(sock_fd, q);
-        // }
+        if (fds[1].revents & POLLIN) {
+            handle_socket_message(sock_fd, q);
+        }
     }
     
     genl_queue_free(q);
