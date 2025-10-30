@@ -17,6 +17,7 @@
 #include "../ks/genlmytest.h" 
 
 #define BUFFER_RECEIVE_SIZE 4096
+#define MAX_LINE 1024
 
 #define NLA_DATA(nla) ((void *)((char *)(nla) + NLA_HDRLEN))
 

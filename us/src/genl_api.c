@@ -125,3 +125,19 @@ int receive_testfamily_msg_unicast(int sock_fd, struct nlmsghdr *nlh_buffer, int
     
     return ret;
 }
+
+int handle_stdin_command(
+    char *data,
+    int sock_fd, 
+    struct sockaddr_nl sa_local, 
+    struct nl_req_queue *q
+) 
+{
+    int ret = 0;
+
+    printf("len : %d, str: %s\n", strlen(data), data);
+
+
+out: 
+    return ret;
+}

@@ -82,6 +82,27 @@ out:
     return ret;
 }
 
+void send_family_echo_callback(struct nlmsghdr *nlh) {
+    struct nlattr *tb_echo[GENLMYTEST_ATTR_MAX + 1];
+    struct genlmsghdr *genlh = (struct genlmsghdr *)NLMSG_DATA(nlh);
+
+    parse_attrs(
+        (struct nlattr *)((char *)genlh + GENL_HDRLEN),
+        tb_echo,
+        nlh->nlmsg_len - NLMSG_HDRLEN - GENL_HDRLEN,
+        GENLMYTEST_ATTR_MAX
+    );
+
+    printf("echo callback : \n");
+    if (!tb_echo[GENLMYTEST_ATTR_TEXT]) {
+        printf("returnet text : %s\n", tb_echo[GENLMYTEST_ATTR_MAX]);
+    }
+
+    if (!tb_echo[GENLMYTEST_ATTR_NUM]) {
+        printf("returned num + 1: %d\n", tb_echo[GENLMYTEST_ATTR_NUM] + 1);
+    }
+}
+
 
 int send_familytest_echo(
     int sock_fd, 

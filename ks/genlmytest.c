@@ -63,7 +63,7 @@ static int genlmytest_echo_cmd(struct sk_buff *skb, struct genl_info *info)
 
 
 static const struct nla_policy genmytest_cmd_policy[GENLMYTEST_ATTR_MAX + 1] = {
-    [GENLMYTEST_ATTR_TEXT] = {.type = NLA_STRING, .maxlen = 64},
+    [GENLMYTEST_ATTR_TEXT] = {.type = NLA_STRING},
     [GENLMYTEST_ATTR_NUM]  = {.type = NLA_U32},
 };
 
