@@ -46,7 +46,7 @@ int main()
 
     q = (struct nl_req_queue *)malloc(sizeof(struct nl_req_queue));
     genl_queue_init(q);
-
+  
     struct pollfd fds[2];
     fds[0].fd       = STDIN_FILENO;
     fds[0].events   = POLLIN;
@@ -77,7 +77,7 @@ int main()
             handle_socket_message(sock_fd, q);
         }
     }
-    
+
     genl_queue_free(q);
     free(q);
 

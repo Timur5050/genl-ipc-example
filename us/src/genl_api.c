@@ -160,35 +160,33 @@ int handle_stdin_command(
     if (strcmp(args[0], "echo") == 0) {
         struct genlmytest_cmd_config cmd_config = {
             .str_param      = args[1],
-            .uint32_param   = (uint32_t)args[2]
+            .uint32_param   = (uint32_t)strtoul(args[2], NULL, 0)
         };
-        printf("calling echo func\n");
+        printf("calling echo func with params : %s,%d\n", cmd_config.str_param, cmd_config.uint32_param);
         ret = send_familytest_echo(sock_fd, sa_local, &cmd_config, send_family_echo_callback, q);
         goto out;
     }
 out: 
-    return ret;
+    return ret; 
 }
 
-int handle_socket_message(sock_fd, q) {
+int handle_socket_message(int sock_fd, struct nl_req_queue *q) {
     int ret = 0;
 
     char recv_buf[BUFFER_RECEIVE_SIZE];
     struct nlmsghdr *nlh_recv = (struct nlmsghdr *)recv_buf;
-    printf("recesved socket - ");
+    printf("recesved socket in handler: ");
     ret = receive_testfamily_msg_unicast(sock_fd, nlh_recv, BUFFER_RECEIVE_SIZE);
 
     if (ret < 0) {
         fprintf(stderr, "failed to receive message in socket handler\n");
         return ret;
     }
-    printf("socket handler: %d\n",nlh_recv->nlmsg_type );
+    printf("socket handler type: %d, seq: %d\n",nlh_recv->nlmsg_type ,nlh_recv->nlmsg_seq);
     if (nlh_recv->nlmsg_type == family_id) {
         genl_callback_t cb = genl_queue_find_and_pop(q, nlh_recv->nlmsg_seq, 0);
         if (cb) {
             cb(nlh_recv);
         }
     }
-
-
 }

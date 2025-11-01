@@ -93,13 +93,13 @@ void send_family_echo_callback(struct nlmsghdr *nlh) {
         GENLMYTEST_ATTR_MAX
     );
 
-    printf("echo callback : \n");
-    if (!tb_echo[GENLMYTEST_ATTR_TEXT]) {
-        printf("returnet text : %s\n", tb_echo[GENLMYTEST_ATTR_MAX]);
+    printf("echo callback : type : %d, seq : %d\n", nlh->nlmsg_type, nlh->nlmsg_seq);
+    if (tb_echo[GENLMYTEST_ATTR_TEXT]) {
+        printf("returnet text : %s\n", (char *)NLA_DATA(tb_echo[GENLMYTEST_ATTR_TEXT]));
     }
 
-    if (!tb_echo[GENLMYTEST_ATTR_NUM]) {
-        printf("returned num + 1: %d\n", tb_echo[GENLMYTEST_ATTR_NUM] + 1);
+    if (tb_echo[GENLMYTEST_ATTR_NUM]) {
+        printf("returned num + 1: %d\n", *(uint32_t*)NLA_DATA(tb_echo[GENLMYTEST_ATTR_NUM]));
     }
 }
 
@@ -117,7 +117,7 @@ int send_familytest_echo(
     struct nlmsghdr *nlh;
     struct genlmsghdr *genlh;
 
-    //memset(buf, 0, sizeof(buf));
+    memset(buf, 0, sizeof(buf));
 
     /* prepare message */
     nlh = (struct nlmsghdr *)buf;
@@ -131,8 +131,8 @@ int send_familytest_echo(
 
     genlh->cmd          = GENLMYTEST_CMD_ECHO;
     genlh->version      = 1;
-
-    add_attr(nlh, GENLMYTEST_ATTR_TEXT, &(in->str_param), strlen(in->str_param) + 1);
+    printf("params: %s, %d\n", in->str_param, in->uint32_param);
+    add_attr(nlh, GENLMYTEST_ATTR_TEXT, in->str_param, strlen(in->str_param) + 1);
     add_attr(nlh, GENLMYTEST_ATTR_NUM, &(in->uint32_param), sizeof(in->uint32_param));
 
     /* register callback before sending message */
@@ -151,5 +151,5 @@ int send_familytest_echo(
     }
 
 out:
-return (ret < 0) ? ret : 0;
+    return (ret < 0) ? ret : 0;
 }

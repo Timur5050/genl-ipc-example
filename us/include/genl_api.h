@@ -20,8 +20,8 @@ int handle_stdin_command(
     int sock_fd, 
     struct sockaddr_nl sa_local, 
     struct nl_req_queue *q
-) ;
+);
 
-int handle_socket_message(sock_fd, q);
+int handle_socket_message(int sock_fd, struct nl_req_queue *q);
 
 #endif /* GENL_API_H */

@@ -5,7 +5,7 @@
 #include "genl_queue.h"
 
 struct genlmytest_cmd_config {
-    char     str_param[64];
+    char     *str_param;
     uint32_t uint32_param;
 };
 
