@@ -10,7 +10,9 @@
 */
 
 #define GENLMYTEST_GENL_NAME "genlmytest"
-#define GENLMYTEST_GENL_VERSION 1
+#define GENLMYTEST_GENL_GROUP_NAME "genlmytest_grp"
+#define GENLMYTEST_GENL_VERSION 1   
+#define MSG_MAX_LEN 1024
 
 
 /* Attributes */
@@ -28,6 +30,7 @@ enum genlmytest_attrs {
 enum genlmytest_cmds {
     GENLMYTEST_CMD_UNSPEC,
     GENLMYTEST_CMD_ECHO,
+    GENLMYTEST_CMD_EVENT,
     __GENLMYTEST_CMD_MAX,
 };
 
