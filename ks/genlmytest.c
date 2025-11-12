@@ -120,7 +120,7 @@ static int echo_ping(const char *buf, size_t cnt)
     
     genlmsg_end(msg, hdr);
 
-    ret = genlmsg_multicast(&genlmytest_family, msg, 0, genlmytest_family.mcgrp_offset, GFP_KERNEL);
+    ret = genlmsg_multicast(&genlmytest_family, msg, 0, 0, GFP_KERNEL);
     if (ret == -ESRCH) {
         pr_warn("multicast message send, but nobody was listening...\n");
     }
