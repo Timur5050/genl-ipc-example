@@ -19,9 +19,11 @@
 
 #define BUFFER_RECEIVE_SIZE 4096
 #define MAX_LINE 1024
+#define MAX_GROUPS 16
 
 #define NLA_DATA(nla)   ((void *)((char *)(nla) + NLA_HDRLEN))
 #define NLA_LEN(nla)    ((int)((nla)->nla_len - NLA_HDRLEN))
+#define NLA_PAYLOAD(nla) ((nla)->nla_len - NLA_HDRLEN)
 
 #define NLATTR_OK(nla, len) ((len) >= (int)sizeof(struct nlattr) && \
                              (nla->nla_len >= sizeof(struct nlattr)) && \

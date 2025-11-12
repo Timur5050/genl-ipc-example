@@ -10,6 +10,8 @@ struct genlmytest_cmd_config {
 };
 
 int get_family_id(int sock_fd, const char *family_name, const struct sockaddr_nl *sa_local);
+int get_group_id(int sock_fd, const char *family_name, const char *group_name, const struct sockaddr_nl *sa_local);
+
 
 void send_family_echo_callback(struct nlmsghdr *nlh);
 int send_familytest_echo(

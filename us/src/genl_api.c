@@ -2,8 +2,6 @@
 #include "genl_debug.h" 
 #include "genl_ops.h"
 
-static struct sockaddr_nl sa_kernel_unicast;
-
 
 void add_attr(struct nlmsghdr *nlh, int attr_type, const void *data, int data_len)
 {
@@ -31,32 +29,6 @@ void parse_attrs(struct nlattr *nla_head, struct nlattr *tb[], int attrs_len, in
     }
 }
 
-void setup_kernel_address_unicast(void) 
-{
-    memset(&sa_kernel_unicast, 0, sizeof(sa_kernel_unicast));
-    sa_kernel_unicast.nl_family = AF_NETLINK;
-    sa_kernel_unicast.nl_pid = 0; // kernel
-    sa_kernel_unicast.nl_groups = 0; // unicast
-}
-
-static struct msghdr *build_msg_body(struct iovec *iov, int len)
-{
-    struct msghdr *msg = (struct msghdr *)malloc(sizeof(struct msghdr));
-    
-    if (msg == NULL)
-    {
-        perror("failed to malloc msg\n");
-        return NULL;
-    }
-
-    msg->msg_name       = (void *)&sa_kernel_unicast; 
-    msg->msg_namelen    = sizeof(sa_kernel_unicast);
-    msg->msg_iov        = iov;
-    msg->msg_iovlen     = len;
-
-    return msg;
-}
-
 int send_testfamily_msg_unicast(int sock_fd, const struct nlmsghdr *nlh)
 {
     int ret = 0;
@@ -68,20 +40,30 @@ int send_testfamily_msg_unicast(int sock_fd, const struct nlmsghdr *nlh)
         }
     };
 
-    struct msghdr *msg = build_msg_body(iov, sizeof(iov) / sizeof(struct iovec));
-    if (!msg) {
-        return -ENOMEM;
-    }
+    struct sockaddr_nl sa_send;
+    struct msghdr msg;
+
+    memset(&msg, 0, sizeof(msg));
+
+    sa_send.nl_family   = AF_NETLINK;
+    sa_send.nl_pid      = 0;
+    sa_send.nl_groups   = 0;
+
+    memset(&sa_send, 0, sizeof(sa_send));
+
+    msg.msg_name    = (void*)&sa_send;
+    msg.msg_namelen = sizeof(sa_send);
+    msg.msg_iov     = iov;
+    msg.msg_iovlen  = 1;
 
     printf("send message :\n");
-    print_full_nlmsg(msg);
+    // print_full_nlmsg(&msg);
     
-    ret = sendmsg(sock_fd, msg, 0);
+    ret = sendmsg(sock_fd, &msg, 0);
     if (ret < 0) {
         perror("sendmsg");
     }
 
-    free(msg);
     return ret;
 }
 
@@ -100,29 +82,29 @@ int receive_testfamily_msg_unicast(int sock_fd, struct nlmsghdr *nlh_buffer, int
         }
     };
 
-    struct msghdr *msg = build_msg_body(iov, sizeof(iov) / sizeof(struct iovec));
-    if (!msg) {
-        return -ENOMEM;
-    }
+    struct sockaddr_nl sa_recv;
+    
+    struct msghdr msg;
 
-    ret = recvmsg(sock_fd, msg, 0);
+    memset(&sa_recv, 0, sizeof(sa_recv));
+    memset(&msg, 0, sizeof(msg));
+
+    msg.msg_name       = (void *)&sa_recv;
+    msg.msg_namelen    = sizeof(sa_recv);
+    msg.msg_iov        = iov;
+    msg.msg_iovlen     = 1; 
+
+    ret = recvmsg(sock_fd, &msg, 0); 
     if (ret < 0)
     {
         perror("recvmsg");
-        free(msg);
         return ret; 
     }
 
     if ((uint32_t)ret < sizeof(struct nlmsghdr)) {
         fprintf(stderr, "Message too short\n");
-        free(msg);
         return -EMSGSIZE;
     }
-
-    printf("receive msg: \n");
-    print_full_nlmsg(msg);
-
-    free(msg);
     
     return ret;
 }
@@ -153,9 +135,6 @@ int handle_stdin_command(
         words_counter++;
     }
     
-    for(int i = 0; i < words_counter; i++) {
-        printf("index : %d, word: %s, len : %d\n", i, args[i], strlen(args[i]));
-    }
 
     if (strcmp(args[0], "echo") == 0) {
         struct genlmytest_cmd_config cmd_config = {

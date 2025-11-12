@@ -3,7 +3,12 @@
 #include "genl_common.h" 
 #include "genl_queue.h"
 
-int get_family_id(int sock_fd, const char *family_name, const struct sockaddr_nl *sa_local) 
+int get_genl_ctrl_by_family_id(
+    int sock_fd, 
+    const char *family_name, 
+    const struct sockaddr_nl *sa_local,
+    struct nlattr *tb[]
+)
 {
     int ret = 0;
     
@@ -20,7 +25,7 @@ int get_family_id(int sock_fd, const char *family_name, const struct sockaddr_nl
 
     nlh_send->nlmsg_type     = GENL_ID_CTRL;
     nlh_send->nlmsg_flags    = NLM_F_REQUEST | NLM_F_ACK;
-    nlh_send->nlmsg_seq      = 0; 
+    nlh_send->nlmsg_seq      = global_message_counter++; 
     nlh_send->nlmsg_pid      = sa_local->nl_pid;
     nlh_send->nlmsg_len      = NLMSG_HDRLEN + GENL_HDRLEN;
 
@@ -35,34 +40,43 @@ int get_family_id(int sock_fd, const char *family_name, const struct sockaddr_nl
         goto out;
     }
 
-    nlh_recv = (struct nlmsghdr *)recv_buf;
-    ret = receive_testfamily_msg_unicast(sock_fd, nlh_recv, BUFFER_RECEIVE_SIZE);
-    
-    if (ret < 0) { 
-        fprintf(stderr, "Failed to receive message\n");
-        goto out;
-    }
+    while (1) 
+    {
+        nlh_recv = (struct nlmsghdr *)recv_buf;
+        ret = receive_testfamily_msg_unicast(sock_fd, nlh_recv, BUFFER_RECEIVE_SIZE);
+        
+        if (ret < 0) { 
+            fprintf(stderr, "Failed to receive message\n");
+            goto out;
+        }
 
-    if (nlh_recv->nlmsg_type != GENL_ID_CTRL) {
         if (nlh_recv->nlmsg_type == NLMSG_ERROR) {
             struct nlmsgerr *err = NLMSG_DATA(nlh_recv);
+            if (err->error == 0) {
+                fprintf(stderr, "Received ACK (error: 0), waiting for data...\n");
+                continue;
+            } 
+            
             if (err->error == -ENOENT)
             {
                 fprintf(stderr, "family '%s' not found (ENOENT)\n", family_name);
                 ret = -ENOENT;
             } else {
-                fprintf(stderr, "Got error: %d\n", err->error);
+                fprintf(stderr, "Got real error: %d\n", err->error);
                 ret = err->error;
             }
-        } else {
+            goto out; 
+        }
+
+        if (nlh_recv->nlmsg_type != GENL_ID_CTRL) {
             fprintf(stderr, "Got unexpected message type %d\n", nlh_recv->nlmsg_type);
             ret = -1;
+            goto out;
         }
-        goto out;
+        break;
     }
 
     genlh = (struct genlmsghdr *)NLMSG_DATA(nlh_recv);
-    struct nlattr *tb[CTRL_ATTR_MAX + 1];
 
     parse_attrs(
         (struct nlattr *)((char *)genlh + GENL_HDRLEN),
@@ -70,6 +84,20 @@ int get_family_id(int sock_fd, const char *family_name, const struct sockaddr_nl
         nlh_recv->nlmsg_len - NLMSG_HDRLEN - GENL_HDRLEN,
         CTRL_ATTR_MAX 
     );
+
+out:
+    return ret;
+}
+
+int get_family_id(int sock_fd, const char *family_name, const struct sockaddr_nl *sa_local)
+{
+    int ret = 0;
+    struct nlattr *tb[CTRL_ATTR_MAX + 1];
+
+    ret = get_genl_ctrl_by_family_id(sock_fd, family_name, sa_local, tb);
+    if (ret < 0) {
+        goto out;
+    }
 
     if (tb[CTRL_ATTR_FAMILY_ID]) {
         ret = *( (uint16_t *) NLA_DATA(tb[CTRL_ATTR_FAMILY_ID]) );
@@ -81,6 +109,57 @@ int get_family_id(int sock_fd, const char *family_name, const struct sockaddr_nl
 out:
     return ret;
 }
+
+
+int get_group_id(int sock_fd, const char *family_name, const char *group_name, const struct sockaddr_nl *sa_local)
+{
+    int ret = 0;
+    struct nlattr *tb[CTRL_ATTR_MAX + 1];
+
+    ret = get_genl_ctrl_by_family_id(sock_fd, family_name, sa_local, tb);
+    if (ret < 0) {
+        goto out;
+    }
+
+    if (tb[CTRL_ATTR_MCAST_GROUPS]) {
+        struct nlattr *nla_grp;
+        int len = NLA_PAYLOAD(tb[CTRL_ATTR_MCAST_GROUPS]);
+
+        struct nlattr *head = (struct nlattr*)NLA_DATA(tb[CTRL_ATTR_MCAST_GROUPS]);
+
+        for (nla_grp = head; NLATTR_OK(nla_grp, len); nla_grp = NLATTR_NEXT(nla_grp, len)) {
+            struct nlattr *tb_grp[CTRL_ATTR_MCAST_GRP_MAX + 1];
+
+            parse_attrs(
+                (struct nlattr *)NLA_DATA(nla_grp),
+                tb_grp,
+                NLA_PAYLOAD(nla_grp),
+                CTRL_ATTR_MCAST_GRP_MAX
+            );
+
+            if (tb_grp[CTRL_ATTR_MCAST_GRP_NAME]) {
+                char *current_group_name = (char *)NLA_DATA(tb_grp[CTRL_ATTR_MCAST_GRP_NAME]);
+
+                if (strcmp(current_group_name, group_name) == 0) {
+                    if (tb_grp[CTRL_ATTR_MCAST_GRP_ID]) {
+                        ret = *(uint32_t *) NLA_DATA(tb_grp[CTRL_ATTR_MCAST_GRP_ID]);
+                        goto out;
+                    }
+                }
+            }
+        }
+        fprintf(stderr, "group '%s' not found in family '%s'\n", group_name, family_name);
+
+        
+    } else {
+        fprintf(stderr, "Failed to get family id for %s\n", family_name);
+        ret = -1;
+    }
+
+out:
+    return ret;
+}
+
 
 void send_family_echo_callback(struct nlmsghdr *nlh) {
     struct nlattr *tb_echo[GENLMYTEST_ATTR_MAX + 1];

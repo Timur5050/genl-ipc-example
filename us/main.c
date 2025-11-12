@@ -5,7 +5,9 @@
 #include "include/genl_queue.h"
 
 int family_id = 0;
-uint32_t global_message_counter = 1;
+uint32_t global_message_counter = 0;
+int group_ids[MAX_GROUPS];
+int groups_counter = 0;
 
 
 int main() 
@@ -33,8 +35,6 @@ int main()
         return EXIT_FAILURE;
     }
 
-    setup_kernel_address_unicast();
-
     family_id = get_family_id(sock_fd, GENLMYTEST_GENL_NAME, &sa_local);
     if (family_id < 0) {
         printf("family is not found '%s', error : %d\n", GENLMYTEST_GENL_NAME, family_id);
@@ -43,6 +43,33 @@ int main()
     }
 
     printf("family id %x for name: %s\n", family_id, GENLMYTEST_GENL_NAME);
+
+    group_ids[groups_counter] = get_group_id(sock_fd, GENLMYTEST_GENL_NAME, GENLMYTEST_GENL_GROUP_NAME, &sa_local);
+    if (group_ids[groups_counter] < 0)
+    {
+        printf("group is not found '%s', error : %d\n", GENLMYTEST_GENL_GROUP_NAME, family_id);
+    } else  {
+        groups_counter++;
+    }
+
+    printf("group id %x for name: %s\n", group_ids[groups_counter - 1], GENLMYTEST_GENL_GROUP_NAME);
+    
+    printf("assigning to the group %d:\n", group_ids[groups_counter - 1]);
+    if (groups_counter != 0)
+    {
+        if (setsockopt(
+            sock_fd,
+            SOL_NETLINK,
+            NETLINK_ADD_MEMBERSHIP,
+            &group_ids[groups_counter - 1],
+            sizeof(group_ids[groups_counter - 1])
+        ) < 0)
+    {
+        perror("setsockopt NETLINK_ADD_MEMBERSHIP");
+        close(sock_fd);
+        return EXIT_FAILURE;
+    }
+    }
 
     q = (struct nl_req_queue *)malloc(sizeof(struct nl_req_queue));
     genl_queue_init(q);

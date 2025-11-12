@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "netlink.h": "c",
+        "stdint.h": "c",
+        "string.h": "c",
+        "errno.h": "c",
+        "genl_common.h": "c",
+        "genl_debug.h": "c",
+        "genl_queue.h": "c"
+    }
+}
