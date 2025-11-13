@@ -43,21 +43,21 @@ int send_testfamily_msg_unicast(int sock_fd, const struct nlmsghdr *nlh)
     struct sockaddr_nl sa_send;
     struct msghdr msg;
 
-    memset(&msg, 0, sizeof(msg));
+    memset(&sa_send, 0, sizeof(sa_send));
 
     sa_send.nl_family   = AF_NETLINK;
     sa_send.nl_pid      = 0;
     sa_send.nl_groups   = 0;
 
-    memset(&sa_send, 0, sizeof(sa_send));
+    memset(&msg, 0, sizeof(msg));
 
     msg.msg_name    = (void*)&sa_send;
     msg.msg_namelen = sizeof(sa_send);
     msg.msg_iov     = iov;
     msg.msg_iovlen  = 1;
 
-    printf("send message :\n");
-    // print_full_nlmsg(&msg);
+   // printf("send message :\n");
+   // print_full_nlmsg(&msg);
     
     ret = sendmsg(sock_fd, &msg, 0);
     if (ret < 0) {
@@ -154,18 +154,41 @@ int handle_socket_message(int sock_fd, struct nl_req_queue *q) {
 
     char recv_buf[BUFFER_RECEIVE_SIZE];
     struct nlmsghdr *nlh_recv = (struct nlmsghdr *)recv_buf;
-    printf("recesved socket in handler: ");
+    
     ret = receive_testfamily_msg_unicast(sock_fd, nlh_recv, BUFFER_RECEIVE_SIZE);
 
     if (ret < 0) {
         fprintf(stderr, "failed to receive message in socket handler\n");
-        return ret;
+        goto out;
     }
-    printf("socket handler type: %d, seq: %d\n",nlh_recv->nlmsg_type ,nlh_recv->nlmsg_seq);
+    printf("socket handler's received msg: type: %d, seq: %d\n",
+        nlh_recv->nlmsg_type ,nlh_recv->nlmsg_seq);
+    
+    if (nlh_recv->nlmsg_type == NLMSG_ERROR) {
+        struct nlmsgerr *err = NLMSG_DATA(nlh_recv);
+        printf("got error msg : ");
+        ret = err->error;
+        if (ret == 0) {
+            printf("Received ACK (error: 0), waiting for data...\n");
+        }
+        else {
+            printf("got real error (error: %d)\n", ret);
+        }
+        goto out;
+    }
+
     if (nlh_recv->nlmsg_type == family_id) {
-        genl_callback_t cb = genl_queue_find_and_pop(q, nlh_recv->nlmsg_seq, 0);
-        if (cb) {
-            cb(nlh_recv);
+        struct genlmsghdr *genl_recv = (struct genlmsghdr *)NLMSG_DATA(nlh_recv);
+        if (genl_recv->cmd == GENLMYTEST_CMD_EVENT) {
+            recv_group_msg_event(nlh_recv);
+        }
+        else {
+            genl_callback_t cb = genl_queue_find_and_pop(q, nlh_recv->nlmsg_seq, 0);
+            if (cb) {
+                cb(nlh_recv);
+            }
         }
     }
+out:
+    return ret;
 }

@@ -210,7 +210,6 @@ int send_familytest_echo(
 
     genlh->cmd          = GENLMYTEST_CMD_ECHO;
     genlh->version      = 1;
-    printf("params: %s, %d\n", in->str_param, in->uint32_param);
     add_attr(nlh, GENLMYTEST_ATTR_TEXT, in->str_param, strlen(in->str_param) + 1);
     add_attr(nlh, GENLMYTEST_ATTR_NUM, &(in->uint32_param), sizeof(in->uint32_param));
 
@@ -231,4 +230,22 @@ int send_familytest_echo(
 
 out:
     return (ret < 0) ? ret : 0;
+}
+
+void recv_group_msg_event(struct nlmsghdr *nlh) {
+    struct nlattr *tb_event[GENLMYTEST_ATTR_MAX + 1];
+    struct genlmsghdr *genlh = (struct genlmsghdr*)NLMSG_DATA(nlh);
+
+    parse_attrs(
+        (struct nlattr *)((char *)genlh + GENL_HDRLEN),
+        tb_event,
+        nlh->nlmsg_len - NLMSG_HDRLEN - GENL_HDRLEN,
+        GENLMYTEST_ATTR_MAX
+    );
+
+    printf("got multicast msg: \n");
+    if (tb_event[GENLMYTEST_ATTR_TEXT]) {
+        printf("got text : %s", (char *)NLA_DATA(tb_event[GENLMYTEST_ATTR_TEXT]));
+    }
+
 }

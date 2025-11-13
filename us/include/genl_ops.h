@@ -21,5 +21,6 @@ int send_familytest_echo(
     genl_callback_t callback,
     struct nl_req_queue *q
 );
+void recv_group_msg_event(struct nlmsghdr *nlh);
 
 #endif /* GENL_OPS_H */
